@@ -22,7 +22,7 @@ public class WorkshopClass implements Workshop {
     private ArrayList<WorkplaceWrapper> workplaces;
 
     private final ConcurrentHashMap<WorkplaceId, WorkplaceWrapper> id_to_workplace_map;
-    private final OrdersQueue main_queue;
+    /*default*/ final OrdersQueue main_queue;
     /*default*/ final ConcurrentHashMap<Long, Semaphore> thread_id_to_semaphore_map;
 
     // For thread id determines which workplace was used by the thread most recent.
@@ -67,7 +67,7 @@ public class WorkshopClass implements Workshop {
 
 
 
-    private void main_mutex_P() {
+    public void main_mutex_P() {
 
         try {
             main_mutex.acquire();
@@ -77,7 +77,7 @@ public class WorkshopClass implements Workshop {
 
     }
 
-    private void main_mutex_V() {
+    public void main_mutex_V() {
 
         main_mutex.release();
 
@@ -115,17 +115,17 @@ public class WorkshopClass implements Workshop {
         // if the desired workplace is free we can just take it (go without blocking)
         WorkplaceWrapper grabbed_wp = desired_workplace.grabWorkplace();
 
-        // if the workplace wasn't empty we must join the queue
         long thread_id = Thread.currentThread().getId();
+
+        // Every order need to be added to the main orders queue.
+        // It will be accomplished when the thread will invoke use() method.
+        main_queue.addOrder(thread_id, patience);
+
+        // if the workplace wasn't empty we must join the workplace queue
         if (grabbed_wp == null) {
-
             desired_workplace.addToSwitchToQ(thread_id);
-            main_queue.addOrder(thread_id, patience);
-
             thread_id_to_semaphore_map.put(thread_id, new Semaphore(0, true));
-
         }
-
 
 
         // TODO
@@ -134,18 +134,12 @@ public class WorkshopClass implements Workshop {
 
 
         if (grabbed_wp != null) {
-
             return grabbed_wp;
         } else {
-
-
             private_semaphore_P();
-
-
         }
 
-
-        return null;
+        return desired_workplace;
     }
 
     @Override

@@ -22,6 +22,35 @@ public class OrdersQueue {
     }
 
 
+    // This operation is linear.
+    public void removeOrder(long thread_id) {
+        queue.removeIf(itr -> itr.thread_id == thread_id);
+    }
+
+
+    // Linear.
+    // Decrease patience of all threads.
+    public void decreasePatience() {
+       for (MainQNode q_node : queue) {
+           q_node.patience -= 1;
+       }
+    }
+
+    // Linear.
+    // Decrease patience of all threads that are before the thread with "thread_id".
+    public void decreasePatience(long thread_id) {
+
+
+        for (MainQNode q_node : queue) {
+            if (q_node.thread_id == thread_id) {
+                break;
+            }
+            q_node.patience -= 1;
+        }
+
+
+    }
+
 
 
 /*
