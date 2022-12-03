@@ -6,9 +6,22 @@ public class WorkplaceWrapper extends Workplace{
 
     private final Workplace workplace;
 
+    boolean ready_to_enter;
+    boolean ready_to_use;
+
+
+
+
+
+
     public WorkplaceWrapper(Workplace wp) {
         super(wp.getId());
         this.workplace = wp;
+
+        ready_to_enter = true;
+        ready_to_use = true;
+
+
     }
 
 
