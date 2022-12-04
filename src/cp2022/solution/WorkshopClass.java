@@ -133,7 +133,7 @@ public class WorkshopClass implements Workshop {
             // if there is a cycle delete ids of the threads that creates it
             // from eager_to_switch sets in workplaces
             // ( every id will be in exactly one such set)
-            for (WorkplaceWrapper wp : thread_id_to_workplace_map.values()) {
+            for (WorkplaceWrapper wp : workplaces) {
                 wp.deleteFromEagerToSwitch(on_path);
             }
             return on_path;
@@ -264,9 +264,9 @@ public class WorkshopClass implements Workshop {
         // If we are living this wp we can ask next thread.
         wp.askNextThread();
 
-        main_mutex_V();
-
         wp.use_guard_V();
+
+        main_mutex_V();
 
     }
 }

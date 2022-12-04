@@ -115,13 +115,14 @@ public class WorkplaceWrapper extends Workplace{
 
         } else if (!enter_queue.isEmpty()) {
 
-            next_thread_id = enter_queue.poll();
+            next_thread_id = enter_queue.peek();
             thread_semaphore = workshop.thread_id_to_semaphore_map.get(next_thread_id);
             if (workshop.main_queue.isFirstPatience0()) {
                 // If patience of the first thread in the main queue is 0,
                 // we can only release thread from the workplace queue if it is the same one
                 if (next_thread_id == workshop.main_queue.getFirstWaitingThread()) {
                     ready_to_enter = false;
+                    enter_queue.poll();
                     thread_semaphore.release();
                 } else {
                     ready_to_enter = true;
@@ -129,6 +130,7 @@ public class WorkplaceWrapper extends Workplace{
             } else {
                 workshop.main_queue.decreasePatience(next_thread_id);
                 ready_to_enter = false;
+                enter_queue.poll();
                 thread_semaphore.release();
             }
 
@@ -185,9 +187,11 @@ public class WorkplaceWrapper extends Workplace{
         // Check if it was blocking order. If so, check if free workplaces can be unlocked.
         if (workshop.main_queue.isFirstPatience0() &&
                 workshop.main_queue.getFirstWaitingThread() == curr_thread_id) {
+            workshop.main_queue.removeOrder(curr_thread_id);
             workshop.checkBlockedWorkplaces();
+        } else {
+            workshop.main_queue.removeOrder(curr_thread_id);
         }
-        workshop.main_queue.removeOrder(curr_thread_id);
 
         // If the use method was invoked, we can safely invoke the inner use method
         // it in previous workplace of the current thread.
