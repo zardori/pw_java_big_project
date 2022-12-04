@@ -52,6 +52,13 @@ public class OrdersQueue {
     }
 
 
+    public long getFirstWaitingThread() {
+        assert (!queue.isEmpty());
+        return queue.peekFirst().thread_id;
+    }
+
+
+
     public boolean isFirstPatience0() {
         if (queue.isEmpty()) {
             return false;

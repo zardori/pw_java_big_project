@@ -81,19 +81,66 @@ public class WorkshopClass implements Workshop {
     }
 
 
+    public void checkBlockedWorkplaces() {
+        for (WorkplaceWrapper wp : workplaces) {
+            if (wp.isReadyToEnter()) {
+                wp.askNextThread();
+            }
+        }
+    }
+
+
     // Returns thread ids that creates cycle.
     // If there is no cycle returns null.
     // Linear with the number of workplaces.
-    public LinkedList<Long> getCycle() {
+    public Set<Long> getCycle(long newly_added) {
+
+        // <source_thread_id, destination_thread_id>
+        HashMap<Long, Long> connections = new HashMap<>();
+
+        LinkedList<Long> curr_incoming_threads;
+        Long curr_thread_on_wp;
 
         for (Map.Entry<Long, WorkplaceWrapper> entry : thread_id_to_workplace_map.entrySet()) {
-            Long key = entry.getKey();
-            WorkplaceWrapper value = entry.getValue();
+            curr_incoming_threads = entry.getValue().getEagerToSwitch();
+            curr_thread_on_wp = entry.getKey();
+
+            for (long t : curr_incoming_threads) {
+                connections.put(t, curr_thread_on_wp);
+            }
         }
 
-        //TODO
+        // If there is a cycle it can be only with the newly added thread
+        long curr_thread = newly_added;
+        TreeSet<Long> on_path = new TreeSet<>();
+        on_path.add(newly_added);
+        boolean is_cycle = false;
 
-        return null;
+        while(connections.containsKey(curr_thread)) {
+            curr_thread = connections.get(curr_thread);
+
+            if (on_path.contains(curr_thread)) {
+                is_cycle = true;
+                break;
+            } else {
+                on_path.add(curr_thread);
+            }
+
+        }
+
+        // Now if there is a cycle, ids from it are in "on_path"
+        if (is_cycle) {
+            // if there is a cycle delete ids of the threads that creates it
+            // from eager_to_switch sets in workplaces
+            // ( every id will be in exactly one such set)
+            for (WorkplaceWrapper wp : thread_id_to_workplace_map.values()) {
+                wp.deleteFromEagerToSwitch(on_path);
+            }
+            return on_path;
+
+        } else {
+            return null;
+        }
 
     }
 
@@ -162,7 +209,7 @@ public class WorkshopClass implements Workshop {
         // It will be accomplished when the thread will invoke use() method.
         main_queue.addOrder(thread_id, patience);
 
-        List<Long> threads_in_cycle = null;
+        Set<Long> threads_in_cycle = null;
 
         // if the workplace wasn't empty we must wait for it
         if (!is_wp_grabbed) {
@@ -170,7 +217,7 @@ public class WorkshopClass implements Workshop {
             desired_workplace.addToEagerToSwitch(thread_id);
 
             // cycle resolving: check for cycle
-            threads_in_cycle = getCycle();
+            threads_in_cycle = getCycle(thread_id);
 
             // If there is a cycle, wake all threads which are parts of it.
             if (threads_in_cycle != null) {
@@ -203,11 +250,21 @@ public class WorkshopClass implements Workshop {
     @Override
     public void leave() {
 
+        main_mutex_P();
+
         long thread_id = Thread.currentThread().getId();
         WorkplaceWrapper wp = thread_id_to_workplace_map.get(thread_id);
+
         assert(wp != null);
+        assert(thread_id_to_semaphore_map.get(thread_id) != null);
 
         thread_id_to_semaphore_map.remove(thread_id);
+        thread_id_to_workplace_map.remove(thread_id);
+
+        // If we are living this wp we can ask next thread.
+        wp.askNextThread();
+
+        main_mutex_V();
 
         wp.use_guard_V();
 

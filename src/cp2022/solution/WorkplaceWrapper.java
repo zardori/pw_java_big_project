@@ -2,9 +2,7 @@ package cp2022.solution;
 
 import cp2022.base.Workplace;
 
-import java.util.HashSet;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
@@ -21,12 +19,12 @@ public class WorkplaceWrapper extends Workplace{
     private boolean ready_to_use;
 
     // queue for ids of the threads that wants to enter this workplace
-    private Queue<Long> enter_queue;
+    private final Queue<Long> enter_queue;
     // queue for ids of the threads that wants to switch to this workplace
     private Queue<Long> switch_to_queue;
 
     // The set of threads (their ids) that wants to enter this workplace
-    private HashSet<Long> eager_to_switch;
+    private final LinkedList<Long> eager_to_switch;
 
 
     public WorkplaceWrapper(Workplace wp,
@@ -37,6 +35,10 @@ public class WorkplaceWrapper extends Workplace{
 
         // probably may be also unfair
         use_guard = new Semaphore(1, true);
+
+        enter_queue = new LinkedList<>();
+        eager_to_switch = new LinkedList<>();
+
 
         resolving_cycle = false;
         ready_to_enter = true;
@@ -66,17 +68,79 @@ public class WorkplaceWrapper extends Workplace{
 
     // Add thread to the set of threads that wants to switch to this workplace.
     public void addToEagerToSwitch(long thread_id) {
-
         eager_to_switch.add(thread_id);
     }
 
+    public LinkedList<Long> getEagerToSwitch() {
+        return eager_to_switch;
+
+    }
+
+    public void deleteFromEagerToSwitch(Set<Long> values_to_del) {
+        eager_to_switch.removeIf(values_to_del::contains);
+    }
 
 
     public void addToEnterQ(long thread_id) {
-
         enter_queue.add(thread_id);
+    }
+
+    public boolean isReadyToEnter() {
+
+        return ready_to_enter;
 
     }
+
+
+
+    // Ask next waiting thread to come to the workplace.
+    // Should be invoked only if workplace is ready to be entered.
+    public void askNextThread() {
+
+        long next_thread_id;
+
+        Semaphore thread_semaphore;
+
+        if (!eager_to_switch.isEmpty()) {
+
+            // If the "eager_to_switch" set is not empty ready_to_enter should be always false
+            assert(!ready_to_enter);
+
+            next_thread_id = eager_to_switch.poll();
+            thread_semaphore = workshop.thread_id_to_semaphore_map.get(next_thread_id);
+
+            assert(thread_semaphore != null);
+
+            thread_semaphore.release();
+
+        } else if (!enter_queue.isEmpty()) {
+
+            next_thread_id = enter_queue.poll();
+            thread_semaphore = workshop.thread_id_to_semaphore_map.get(next_thread_id);
+            if (workshop.main_queue.isFirstPatience0()) {
+                // If patience of the first thread in the main queue is 0,
+                // we can only release thread from the workplace queue if it is the same one
+                if (next_thread_id == workshop.main_queue.getFirstWaitingThread()) {
+                    ready_to_enter = false;
+                    thread_semaphore.release();
+                } else {
+                    ready_to_enter = true;
+                }
+            } else {
+                workshop.main_queue.decreasePatience(next_thread_id);
+                ready_to_enter = false;
+                thread_semaphore.release();
+            }
+
+        } else {
+            ready_to_enter = true;
+        }
+
+
+    }
+
+
+
 
     public synchronized void addToSwitchToQ(long thread_id) {
         switch_to_queue.add(thread_id);
@@ -115,21 +179,24 @@ public class WorkplaceWrapper extends Workplace{
 
         workshop.main_mutex_P();
 
-        // If the use method was invoked, it means that the order is complete.
-        workshop.main_queue.removeOrder(curr_thread_id); // TODO
+        WorkplaceWrapper prev_wp = workshop.thread_id_to_workplace_map.get(curr_thread_id);
 
+        // If the use method was invoked, it means that the order is complete.
+        // Check if it was blocking order. If so, check if free workplaces can be unlocked.
+        if (workshop.main_queue.isFirstPatience0() &&
+                workshop.main_queue.getFirstWaitingThread() == curr_thread_id) {
+            workshop.checkBlockedWorkplaces();
+        }
+        workshop.main_queue.removeOrder(curr_thread_id);
 
         // If the use method was invoked, we can safely invoke the inner use method
         // it in previous workplace of the current thread.
-        WorkplaceWrapper prev_wp = workshop.thread_id_to_workplace_map.get(curr_thread_id);
-
         if (prev_wp != null) {
             prev_wp.use_guard_V();
 
             if (!resolving_cycle) {
-
-                // TODO: call next thread waiting to get to the previous workplace
-
+                // If we are not resolving cycle previous workplace will be free
+                prev_wp.askNextThread();
             } else {
                 resolving_cycle = false;
             }
