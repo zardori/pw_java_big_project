@@ -4,10 +4,7 @@ import cp2022.base.Workplace;
 import cp2022.base.WorkplaceId;
 import cp2022.base.Workshop;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
@@ -84,23 +81,67 @@ public class WorkshopClass implements Workshop {
     }
 
 
+    // Returns thread ids that creates cycle.
+    // If there is no cycle returns null.
+    // Linear with the number of workplaces.
+    public LinkedList<Long> getCycle() {
+
+        for (Map.Entry<Long, WorkplaceWrapper> entry : thread_id_to_workplace_map.entrySet()) {
+            Long key = entry.getKey();
+            WorkplaceWrapper value = entry.getValue();
+        }
+
+        //TODO
+
+        return null;
+
+    }
+
+
 
     @Override
     public Workplace enter(WorkplaceId wid) {
 
-
-
         main_mutex_P();
 
-        // TODO
+        WorkplaceWrapper desired_workplace = id_to_workplace_map.get(wid);
+        long thread_id = Thread.currentThread().getId();
 
+        // Every order need to be added to the main orders queue.
+        // It will be accomplished when the thread will invoke use() method.
+        main_queue.addOrder(thread_id, patience);
+
+        // this variable indicates if the thread can enter workshop
+        // according to the 2 * N limit
+        boolean can_enter_workshop = !main_queue.isFirstPatience0();
+
+        // this variable indicates if the thread managed to grab the workplace offhand
+        boolean is_wp_grabbed = false;
+
+        if (can_enter_workshop) {
+
+            // if the desired workplace is free we can just take it (go without blocking)
+            is_wp_grabbed = desired_workplace.grabWorkplace();
+
+            if (is_wp_grabbed) {
+                // all threads that came before current thread should have patience decreased
+                main_queue.decreasePatience(thread_id);
+            } else {
+                desired_workplace.addToEnterQ(thread_id);
+            }
+
+        }
+
+        thread_id_to_semaphore_map.put(thread_id, new Semaphore(0, true));
 
 
         main_mutex_V();
 
+        if (!is_wp_grabbed) {
+            private_semaphore_P();
+        }
 
-
-        return null;
+        return desired_workplace;
     }
 
 
@@ -113,7 +154,7 @@ public class WorkshopClass implements Workshop {
         WorkplaceWrapper desired_workplace = id_to_workplace_map.get(wid);
 
         // if the desired workplace is free we can just take it (go without blocking)
-        WorkplaceWrapper grabbed_wp = desired_workplace.grabWorkplace();
+        boolean is_wp_grabbed = desired_workplace.grabWorkplace();
 
         long thread_id = Thread.currentThread().getId();
 
@@ -121,23 +162,40 @@ public class WorkshopClass implements Workshop {
         // It will be accomplished when the thread will invoke use() method.
         main_queue.addOrder(thread_id, patience);
 
-        // if the workplace wasn't empty we must join the workplace queue
-        if (grabbed_wp == null) {
-            desired_workplace.addToSwitchToQ(thread_id);
-            thread_id_to_semaphore_map.put(thread_id, new Semaphore(0, true));
+        List<Long> threads_in_cycle = null;
+
+        // if the workplace wasn't empty we must wait for it
+        if (!is_wp_grabbed) {
+
+            desired_workplace.addToEagerToSwitch(thread_id);
+
+            // cycle resolving: check for cycle
+            threads_in_cycle = getCycle();
+
+            // If there is a cycle, wake all threads which are parts of it.
+            if (threads_in_cycle != null) {
+                for (long t : threads_in_cycle) {
+                    thread_id_to_workplace_map.get(t).setResolvingCycle();
+                    // curr thread is not waiting on semaphore, so we won't wake it
+                    if (thread_id != t) {
+                        thread_id_to_semaphore_map.get(t).release();
+                    }
+                }
+            } else {
+                // If there is no cycle we must prepare private semaphore to wait on it.
+                thread_id_to_semaphore_map.put(thread_id, new Semaphore(0, true));
+            }
         }
 
 
-        // TODO
 
         main_mutex_V();
 
-
-        if (grabbed_wp != null) {
-            return grabbed_wp;
-        } else {
+        // If there is no free pass and there is no cycle thread must wait.
+        if (!is_wp_grabbed && threads_in_cycle == null) {
             private_semaphore_P();
         }
+
 
         return desired_workplace;
     }
@@ -145,8 +203,13 @@ public class WorkshopClass implements Workshop {
     @Override
     public void leave() {
 
+        long thread_id = Thread.currentThread().getId();
+        WorkplaceWrapper wp = thread_id_to_workplace_map.get(thread_id);
+        assert(wp != null);
 
+        thread_id_to_semaphore_map.remove(thread_id);
 
+        wp.use_guard_V();
 
     }
 }

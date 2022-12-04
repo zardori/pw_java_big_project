@@ -52,6 +52,15 @@ public class OrdersQueue {
     }
 
 
+    public boolean isFirstPatience0() {
+        if (queue.isEmpty()) {
+            return false;
+        } else {
+            return queue.peekFirst().patience == 0;
+        }
+    }
+
+
 
 /*
 

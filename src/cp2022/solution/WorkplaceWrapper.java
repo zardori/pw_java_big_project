@@ -2,7 +2,9 @@ package cp2022.solution;
 
 import cp2022.base.Workplace;
 
+import java.util.HashSet;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
@@ -13,6 +15,8 @@ public class WorkplaceWrapper extends Workplace{
 
     private final Semaphore use_guard;
 
+    private boolean resolving_cycle;
+
     private boolean ready_to_enter;
     private boolean ready_to_use;
 
@@ -20,6 +24,9 @@ public class WorkplaceWrapper extends Workplace{
     private Queue<Long> enter_queue;
     // queue for ids of the threads that wants to switch to this workplace
     private Queue<Long> switch_to_queue;
+
+    // The set of threads (their ids) that wants to enter this workplace
+    private HashSet<Long> eager_to_switch;
 
 
     public WorkplaceWrapper(Workplace wp,
@@ -31,6 +38,7 @@ public class WorkplaceWrapper extends Workplace{
         // probably may be also unfair
         use_guard = new Semaphore(1, true);
 
+        resolving_cycle = false;
         ready_to_enter = true;
         ready_to_use = true;
 
@@ -47,6 +55,19 @@ public class WorkplaceWrapper extends Workplace{
 
     public void use_guard_V() {
         use_guard.release();
+    }
+
+    public void setResolvingCycle() {
+
+        resolving_cycle = true;
+    }
+
+
+
+    // Add thread to the set of threads that wants to switch to this workplace.
+    public void addToEagerToSwitch(long thread_id) {
+
+        eager_to_switch.add(thread_id);
     }
 
 
@@ -71,12 +92,12 @@ public class WorkplaceWrapper extends Workplace{
     }
 
 
-    public WorkplaceWrapper grabWorkplace() {
+    public boolean grabWorkplace() {
         if (ready_to_enter) {
             ready_to_enter = false;
-            return this;
+            return true;
         } else {
-            return null;
+            return false;
         }
     }
 
@@ -95,7 +116,8 @@ public class WorkplaceWrapper extends Workplace{
         workshop.main_mutex_P();
 
         // If the use method was invoked, it means that the order is complete.
-        workshop.main_queue.removeOrder(curr_thread_id);
+        workshop.main_queue.removeOrder(curr_thread_id); // TODO
+
 
         // If the use method was invoked, we can safely invoke the inner use method
         // it in previous workplace of the current thread.
@@ -103,19 +125,30 @@ public class WorkplaceWrapper extends Workplace{
 
         if (prev_wp != null) {
             prev_wp.use_guard_V();
+
+            if (!resolving_cycle) {
+
+                // TODO: call next thread waiting to get to the previous workplace
+
+            } else {
+                resolving_cycle = false;
+            }
+
+
         }
 
         workshop.thread_id_to_workplace_map.put(curr_thread_id, this);
 
 
-        // TODO
 
         workshop.main_mutex_V();
 
         use_guard_P();
 
+
         workplace.use();
 
+        /*
 
         // ending protocol
 
@@ -130,10 +163,10 @@ public class WorkplaceWrapper extends Workplace{
         }
 
 
-        // TODO
+
 
         workshop.main_mutex_V();
-
+        */
 
     }
 }
