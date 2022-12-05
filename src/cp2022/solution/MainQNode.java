@@ -1,7 +1,6 @@
 package cp2022.solution;
 
 public class MainQNode {
-
     public long thread_id;
 
     public long patience;
@@ -10,7 +9,5 @@ public class MainQNode {
         this.thread_id = thread_id;
         this.patience = patience;
     }
-
-
 
 }

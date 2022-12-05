@@ -3,7 +3,6 @@ package cp2022.solution;
 import cp2022.base.Workplace;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
 public class WorkplaceWrapper extends Workplace{
@@ -41,7 +40,6 @@ public class WorkplaceWrapper extends Workplace{
         resolving_cycle = false;
         ready_to_enter = true;
 
-
     }
 
     private void use_guard_P() {
@@ -62,7 +60,6 @@ public class WorkplaceWrapper extends Workplace{
     }
 
 
-
     // Add thread to the set of threads that wants to switch to this workplace.
     public void addToEagerToSwitch(long thread_id) {
         eager_to_switch.add(thread_id);
@@ -77,7 +74,6 @@ public class WorkplaceWrapper extends Workplace{
         eager_to_switch.removeIf(values_to_del::contains);
     }
 
-
     public void addToEnterQ(long thread_id) {
         enter_queue.add(thread_id);
     }
@@ -87,7 +83,6 @@ public class WorkplaceWrapper extends Workplace{
         return ready_to_enter;
 
     }
-
 
 
     // Ask next waiting thread to come to the workplace.
@@ -134,10 +129,7 @@ public class WorkplaceWrapper extends Workplace{
         } else {
             ready_to_enter = true;
         }
-
-
     }
-
 
     public boolean grabWorkplace() {
         if (ready_to_enter) {
@@ -147,7 +139,6 @@ public class WorkplaceWrapper extends Workplace{
             return false;
         }
     }
-
 
 
     @Override
@@ -182,40 +173,16 @@ public class WorkplaceWrapper extends Workplace{
             } else {
                 resolving_cycle = false;
             }
-
-
         }
 
         workshop.thread_id_to_workplace_map.put(curr_thread_id, this);
-
-
 
         workshop.main_mutex_V();
 
         use_guard_P();
 
-
         workplace.use();
 
-        /*
-
-        // ending protocol
-
-        // At this moment other thread can enter this workplace
-        workshop.main_mutex_P();
-
-        long thread_id;
-
-        if (!switch_to_queue.isEmpty()) {
-            thread_id = switch_to_queue.poll();
-            workshop.thread_id_to_semaphore_map.get(thread_id).release();
-        }
-
-
-
-
-        workshop.main_mutex_V();
-        */
 
     }
 }

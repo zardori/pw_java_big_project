@@ -6,7 +6,6 @@ import cp2022.base.Workshop;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
 
 public class WorkshopClass implements Workshop {
@@ -36,9 +35,7 @@ public class WorkshopClass implements Workshop {
 
         id_to_workplace_map = new ConcurrentHashMap<>();
         for (WorkplaceWrapper wp : workplaces) {
-
             id_to_workplace_map.put(wp.getId(), wp);
-
         }
 
         main_queue = new OrdersQueue();
@@ -62,23 +59,17 @@ public class WorkshopClass implements Workshop {
     }
 
 
-
     public void main_mutex_P() {
-
         try {
             main_mutex.acquire();
         } catch (InterruptedException e) {
             throw new RuntimeException("panic: unexpected thread interruption");
         }
-
     }
 
     public void main_mutex_V() {
-
         main_mutex.release();
-
     }
-
 
     public void checkBlockedWorkplaces() {
         for (WorkplaceWrapper wp : workplaces) {
@@ -91,7 +82,7 @@ public class WorkshopClass implements Workshop {
 
     // Returns thread ids that creates cycle.
     // If there is no cycle returns null.
-    // Linear with the number of workplaces.
+    // n * log(n) when n workplaces
     public Set<Long> getCycle(long newly_added) {
 
         // <source_thread_id, destination_thread_id>
@@ -124,7 +115,6 @@ public class WorkshopClass implements Workshop {
             } else {
                 on_path.add(curr_thread);
             }
-
         }
 
         // Now if there is a cycle, ids from it are in "on_path"
@@ -142,7 +132,6 @@ public class WorkshopClass implements Workshop {
         }
 
     }
-
 
 
     @Override
@@ -177,12 +166,10 @@ public class WorkshopClass implements Workshop {
             }
 
         } else {
-
             desired_workplace.addToEnterQ(thread_id);
         }
 
         thread_id_to_semaphore_map.put(thread_id, new Semaphore(0, true));
-
 
         main_mutex_V();
 
@@ -237,14 +224,12 @@ public class WorkshopClass implements Workshop {
         }
 
 
-
         main_mutex_V();
 
         // If there is no free pass and there is no cycle thread must wait.
         if (!is_wp_grabbed && threads_in_cycle == null) {
             private_semaphore_P();
         }
-
 
         return desired_workplace;
     }
