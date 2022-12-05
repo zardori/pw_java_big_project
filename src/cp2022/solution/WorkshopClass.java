@@ -15,8 +15,7 @@ public class WorkshopClass implements Workshop {
     // to the workshop after it can enter before it.
     private final long patience;
     private final Semaphore main_mutex;
-
-    private ArrayList<WorkplaceWrapper> workplaces;
+    private final ArrayList<WorkplaceWrapper> workplaces;
 
     private final ConcurrentHashMap<WorkplaceId, WorkplaceWrapper> id_to_workplace_map;
     /*default*/ final OrdersQueue main_queue;

@@ -13,15 +13,13 @@ public class WorkplaceWrapper extends Workplace{
 
     private final Semaphore use_guard;
 
-    private boolean resolving_cycle;
+    private volatile boolean resolving_cycle;
 
-    private boolean ready_to_enter;
-    private boolean ready_to_use;
+    private volatile boolean ready_to_enter;
+
 
     // queue for ids of the threads that wants to enter this workplace
     private final Queue<Long> enter_queue;
-    // queue for ids of the threads that wants to switch to this workplace
-    private Queue<Long> switch_to_queue;
 
     // The set of threads (their ids) that wants to enter this workplace
     private final LinkedList<Long> eager_to_switch;
@@ -42,7 +40,6 @@ public class WorkplaceWrapper extends Workplace{
 
         resolving_cycle = false;
         ready_to_enter = true;
-        ready_to_use = true;
 
 
     }
@@ -142,22 +139,6 @@ public class WorkplaceWrapper extends Workplace{
     }
 
 
-
-
-    public synchronized void addToSwitchToQ(long thread_id) {
-        switch_to_queue.add(thread_id);
-    }
-
-    public synchronized boolean switchToQIsEmpty() {
-        return switch_to_queue.isEmpty();
-    }
-
-    public synchronized long getFromSwitchToQ() {
-        assert(!switch_to_queue.isEmpty());
-        return switch_to_queue.poll();
-    }
-
-
     public boolean grabWorkplace() {
         if (ready_to_enter) {
             ready_to_enter = false;
@@ -166,9 +147,6 @@ public class WorkplaceWrapper extends Workplace{
             return false;
         }
     }
-
-
-
 
 
 
