@@ -176,6 +176,9 @@ public class WorkshopClass implements Workshop {
                 desired_workplace.addToEnterQ(thread_id);
             }
 
+        } else {
+
+            desired_workplace.addToEnterQ(thread_id);
         }
 
         thread_id_to_semaphore_map.put(thread_id, new Semaphore(0, true));
